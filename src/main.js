@@ -3,8 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision'
 import GUI from 'lil-gui'
-import fragmentShader from './shaders/fragment.glsl'
-
+import { effectNamesList, effectShadersList } from './effects.js'
 // Web Audio Setup
 let audioElement;
 let audioContext;
@@ -49,14 +48,7 @@ const video = document.createElement('video')
 video.autoplay = true
 video.playsInline = true
 video.muted = true
-video.style.position = 'fixed'
-video.style.top = '0'
-video.style.left = '0'
-video.style.width = '100vw'
-video.style.height = '100vh'
-video.style.objectFit = 'cover'
-video.style.zIndex = '-1'
-video.style.transform = 'scaleX(-1)' // Mirror the video visually
+video.style.display = 'none' // Hide from DOM, WebGL will render it
 document.body.appendChild(video)
 
 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -143,17 +135,126 @@ const pointsMat = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: fragmentShader,
+  fragmentShader: "void main() { gl_FragColor = vec4(0.0); }", // Placeholder
   side: THREE.DoubleSide,
   transparent: true
 })
 const pointsMesh = new THREE.Mesh(pointsGeo, pointsMat)
-
 scene.add(pointsMesh)
+
+const bgGeometry = new THREE.PlaneGeometry(1000, 1000)
+const bgEffectIds = new Float32Array(bgGeometry.attributes.position.count).fill(-1)
+bgGeometry.setAttribute('aEffectId', new THREE.BufferAttribute(bgEffectIds, 1))
+const bgMesh = new THREE.Mesh(bgGeometry, pointsMat)
+bgMesh.position.z = -50
+scene.add(bgMesh)
 
 let currentEffects = new Array(4 * MAX_PAIRS).fill(0)
 let lastRandomizeTime = 0
 let lastPinchTime = 0
+
+const debugState = {
+  'Quad 1': 'Loading...',
+  'Quad 2': 'Loading...',
+  'Quad 3': 'Loading...',
+  'Quad 4': 'Loading...'
+}
+const effectFolder = gui.addFolder('Active Effects (Pair 1)')
+effectFolder.add(debugState, 'Quad 1').listen().disable()
+effectFolder.add(debugState, 'Quad 2').listen().disable()
+effectFolder.add(debugState, 'Quad 3').listen().disable()
+effectFolder.add(debugState, 'Quad 4').listen().disable()
+
+function buildDynamicShader(activeEffects) {
+  let shaderBody = "uniform sampler2D uVideo;\n" +
+  "uniform vec2 uResolution;\n" +
+  "uniform vec2 uVideoSize;\n" +
+  "uniform float uTime;\n" +
+  "uniform float uAudioLow;\n" +
+  "uniform float uAudioMid;\n" +
+  "uniform float uAudioHigh;\n" +
+  "varying float vEffectId;\n" +
+  "void main() {\n" +
+  "  vec2 uv = gl_FragCoord.xy / uResolution.xy;\n" +
+  "  float videoAspect = uVideoSize.x / uVideoSize.y;\n" +
+  "  float windowAspect = uResolution.x / uResolution.y;\n" +
+  "  vec2 videoUv = uv;\n" +
+  "  if (windowAspect > videoAspect) {\n" +
+  "    float scale = windowAspect / videoAspect;\n" +
+  "    videoUv.y = (uv.y - 0.5) / scale + 0.5;\n" +
+  "  } else {\n" +
+  "    float scale = videoAspect / windowAspect;\n" +
+  "    videoUv.x = (uv.x - 0.5) / scale + 0.5;\n  }\n" +
+  "  videoUv.x = 1.0 - videoUv.x;\n" +
+  "  int effect = int(vEffectId + 0.5);\n" +
+  "  vec2 effectUv = videoUv;\n" +
+  "  vec4 baseColor = texture2D(uVideo, effectUv);\n" +
+  "  vec4 outColor = baseColor;\n";
+
+  let first = true;
+  for (const id of activeEffects) {
+      if (id < 0 || id >= effectShadersList.length) continue;
+      let statement = first ? 'if' : 'else if';
+      first = false;
+      shaderBody += "  " + statement + " (effect == " + id + ") {\n";
+      shaderBody += "      " + effectShadersList[id] + "\n";
+      shaderBody += "  }\n";
+  }
+
+  shaderBody += "  else {\n";
+  shaderBody += "      outColor = baseColor;\n";
+  shaderBody += "  }\n";
+  shaderBody += "  gl_FragColor = vec4(clamp(outColor.rgb, 0.0, 1.0), 1.0);\n";
+  shaderBody += "}\n";
+
+  return shaderBody;
+}
+
+const bgGuiState = { bgEffect: -1 }
+
+function updateShaderMaterial() {
+    const active = new Set(currentEffects);
+    active.add(bgGuiState.bgEffect);
+    pointsMat.fragmentShader = buildDynamicShader(Array.from(active));
+    pointsMat.needsUpdate = true;
+}
+
+function randomizeEffects() {
+  const chosen = new Set();
+  for (let i = 0; i < currentEffects.length; i++) {
+      let r;
+      do {
+          r = Math.floor(Math.random() * effectNamesList.length);
+      } while (chosen.has(r));
+      chosen.add(r);
+      currentEffects[i] = r;
+  }
+  updateShaderMaterial();
+  updateDebugState();
+}
+
+function getEffectName(id) {
+  return effectNamesList[id] || 'Unknown';
+}
+const bgOptions = { "None (Original)": -1 }
+effectNamesList.forEach((name, idx) => { bgOptions[`${idx}: ${name}`] = idx })
+
+gui.add(bgGuiState, 'bgEffect', bgOptions).name('Background Effect').onChange((val) => {
+  const arr = bgMesh.geometry.attributes.aEffectId.array
+  for(let i=0; i<arr.length; i++) arr[i] = parseInt(val)
+  bgMesh.geometry.attributes.aEffectId.needsUpdate = true
+  updateShaderMaterial()
+})
+
+function updateDebugState() {
+  debugState['Quad 1'] = getEffectName(currentEffects[0])
+  debugState['Quad 2'] = getEffectName(currentEffects[1])
+  debugState['Quad 3'] = getEffectName(currentEffects[2])
+  debugState['Quad 4'] = getEffectName(currentEffects[3])
+}
+
+// Initial shader setup
+randomizeEffects()
 
 // Resize handler
 const handleResize = () => {
@@ -188,9 +289,7 @@ const animate = () => {
     
     // Randomize effects every 5 seconds natively
     if (startTimeMs - lastRandomizeTime > 5000) {
-      for (let i = 0; i < currentEffects.length; i++) {
-        currentEffects[i] = Math.floor(Math.random() * 130)
-      }
+      randomizeEffects()
       lastRandomizeTime = startTimeMs
     }
 
@@ -247,9 +346,7 @@ const animate = () => {
         }
         
         if (pinchDetected && startTimeMs - lastPinchTime > 500) {
-            for (let i = 0; i < currentEffects.length; i++) {
-                currentEffects[i] = Math.floor(Math.random() * 130)
-            }
+            randomizeEffects()
             lastPinchTime = startTimeMs
             lastRandomizeTime = startTimeMs
         }
