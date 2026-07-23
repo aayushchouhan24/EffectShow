@@ -1,7 +1,575 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap');
+
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
   padding: 0;
+  font-family: 'Comic Neue', cursive;
+  background-color: #222;
+  color: #fff;
+  overflow: hidden;
+  /* App is full screen */
+}
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* === COMIC BACKGROUND === */
+.comic-bg {
+  background-color: #f7d100;
+  background-image: radial-gradient(#000000 16%, transparent 17%), radial-gradient(#000000 16%, transparent 17%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* === LANDING PAGE === */
+.landing-page {
+  width: 100%;
+  height: 100vh; /* Fixed height to enable internal scrolling */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  position: relative;
+  overflow-y: auto; /* Allow scrolling */
+  overflow-x: hidden;
+  padding: 4rem 2rem 2rem 2rem;
+}
+
+.landing-content {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 1350px;
+  width: 100%;
+  margin: auto 0;
+}
+
+/* Speech Badges */
+.speech-badge {
+  position: absolute;
+  background: #111;
+  color: #fff;
+  font-family: 'Bangers', cursive;
+  font-size: 1.15rem;
+  padding: 0.4rem 1.1rem;
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0px #000;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  transform: rotate(-4deg);
+  animation: floatBadge 3s ease-in-out infinite alternate;
+  z-index: 20;
+}
+
+.top-left-badge {
+  top: -25px;
+  left: 20px;
+  background: #ff0054;
+}
+
+.top-right-badge {
+  top: -25px;
+  right: 320px;
+  background: #7209b7;
+  transform: rotate(4deg);
+  animation-delay: 1.5s;
+}
+
+@keyframes floatBadge {
+  from { transform: translateY(0) rotate(-4deg); }
+  to { transform: translateY(-8px) rotate(-2deg); }
+}
+
+/* Widescreen 3-Column Layout: Left Privacy | Center Hero | Right Features */
+.landing-grid-3col {
+  display: grid;
+  grid-template-columns: 310px 1fr 340px;
+  gap: 2rem;
+  width: 100%;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+/* Privacy Column (Left) */
+.privacy-panel-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.privacy-card {
+  background: #ffffff;
+  border: 5px solid #000000;
+  padding: 1.5rem;
+  box-shadow: 8px 8px 0px #000000;
+  border-top: 10px solid #ff0054;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.privacy-card:hover,
+.privacy-card.finger-hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 12px 12px 0px #000000;
+  background: #fff0f5;
+}
+
+.privacy-card h3 {
+  font-family: 'Bangers', cursive;
+  font-size: 1.8rem;
+  color: #000;
+  margin: 0 0 0.8rem 0;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.privacy-item {
+  margin-bottom: 0.9rem;
+}
+
+.privacy-item:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-item strong {
+  display: block;
+  font-family: 'Bangers', cursive;
+  font-size: 1.1rem;
+  color: #ff0054;
+  letter-spacing: 0.5px;
+}
+
+.privacy-item p {
+  margin: 0.2rem 0 0 0;
+  font-family: 'Comic Neue', cursive;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #222;
+  line-height: 1.35;
+}
+
+/* Center Hero Column */
+.center-hero-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Title Card */
+.comic-title-container {
+  text-align: center;
+  background: #ffffff;
+  padding: 2.2rem 3rem;
+  border: 8px solid #000000;
+  transform: rotate(-2deg);
+  box-shadow: 14px 14px 0px #ff0054;
+  margin-bottom: 2rem;
+  position: relative;
+  width: 100%;
+}
+
+.title-tag {
+  display: inline-block;
+  background: #000000;
+  color: #f7d100;
+  font-family: 'Bangers', cursive;
+  font-size: 1.1rem;
+  padding: 0.2rem 1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+}
+
+.comic-title {
+  font-family: 'Bangers', cursive;
+  font-size: 5rem;
+  color: #000000;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 5px 5px 0px #4cc9f0;
+  line-height: 0.95;
+}
+
+.comic-subtitle {
+  font-size: 1.6rem;
+  color: #ff0054;
+  margin: 0.8rem 0 0 0;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+/* Action Burst */
+.action-burst {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.comic-button {
+  background: #ff0054;
+  border: 6px solid #000;
+  padding: 1.2rem 3.5rem;
+  font-family: 'Bangers', cursive;
+  font-size: 2.8rem;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 10px 10px 0px #000;
+  transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-radius: 60px;
+  transform: rotate(-3deg);
+  letter-spacing: 2px;
+  text-shadow: 3px 3px 0px #000;
+}
+
+.comic-button:hover,
+.comic-button.finger-hover {
+  transform: scale(1.1) rotate(2deg);
+  background: #4cc9f0;
+  box-shadow: 14px 14px 0px #000;
+  color: #000;
+  text-shadow: none;
+}
+
+.comic-button:active {
+  transform: scale(0.96);
+  box-shadow: 4px 4px 0px #000;
+}
+
+/* Pinch Instruction Box */
+.pinch-instruction-box {
+  margin-top: 1.2rem;
+  background: #ffffff;
+  color: #000;
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0px #000;
+  padding: 0.5rem 1.5rem;
+  font-family: 'Comic Neue', cursive;
+  font-weight: 800;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 12px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pinch-instruction-box:hover,
+.pinch-instruction-box.finger-hover {
+  transform: scale(1.05);
+  background: #f7d100;
+}
+
+.pinch-icon {
+  font-size: 1.4rem;
+}
+
+/* Sensor Status Indicator */
+.sensor-status-badge {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #000;
+  color: #fff;
+  padding: 0.4rem 1.2rem;
+  border-radius: 20px;
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1px;
+  font-size: 1rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff0054;
+}
+
+.sensor-status-badge.active .status-dot {
+  background: #00f5d4;
+  box-shadow: 0 0 10px #00f5d4;
+}
+
+/* Features Column (Right) */
+.features-panel-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.comic-panel-box {
+  background: #ffffff;
+  border: 5px solid #000000;
+  padding: 1.4rem;
+  box-shadow: 8px 8px 0px #000000;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.comic-panel-box:hover,
+.comic-panel-box.finger-hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 12px 12px 0px #000000;
+  background: #f0f9ff;
+}
+
+.card-badge {
+  font-family: 'Bangers', cursive;
+  font-size: 0.9rem;
+  background: #000;
+  color: #4cc9f0;
+  padding: 0.15rem 0.5rem;
+  display: inline-block;
+  align-self: flex-start;
+  margin-bottom: 0.6rem;
+  letter-spacing: 1px;
+  border-radius: 3px;
+}
+
+.comic-panel-box h3 {
+  font-family: 'Bangers', cursive;
+  font-size: 1.7rem;
+  color: #000;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 1px;
+}
+
+.comic-panel-box p {
+  color: #111;
+  font-family: 'Comic Neue', cursive;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.feature-card-1 { border-top: 10px solid #ff0054; }
+.feature-card-2 { border-top: 10px solid #4cc9f0; }
+.feature-card-3 { border-top: 10px solid #7209b7; }
+
+.github-link-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  background: #000;
+  color: #f7d100;
+  text-decoration: none;
+  font-family: 'Bangers', cursive;
+  font-size: 1.15rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.github-link-btn:hover,
+.github-link-btn.finger-hover {
+  background: #ff0054;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+/* Webcam Preview Styling */
+.webcam-preview {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 290px;
+  object-fit: contain;
+  border: 5px solid #000;
+  box-shadow: 8px 8px 0px #000;
+  border-radius: 8px;
+  transform: scaleX(-1) rotate(2deg);
+  z-index: 10;
   background-color: #000;
+}
+
+/* === COMIC FRAME === */
+.full-screen-frame {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  display: flex;
+}
+
+.comic-page {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.comic-panel {
+  background: #fff;
+  border: 6px solid #000;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.shadow-pop {
+  box-shadow: 8px 8px 0px #000;
+}
+
+.panel-header {
+  background: #000;
+  color: #fff;
+  font-family: 'Bangers', cursive;
+  font-size: 1.5rem;
+  padding: 0.5rem 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+}
+
+.settings-content {
+  background-color: #111;
+  /* Leva uses dark theme mostly */
+  overflow-y: auto;
+}
+
+.loading-comic {
+  font-family: 'Bangers', cursive;
+  font-size: 3rem;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.1);
+    color: #f7d100;
+  }
+}
+
+/* Override Leva Styles to fit the comic theme */
+:root {
+  --leva-colors-elevation1: #111;
+  --leva-colors-elevation2: #222;
+  --leva-colors-elevation3: #333;
+  --leva-colors-highlight1: #f7d100;
+  /* Comic Yellow */
+  --leva-colors-highlight2: #e63946;
+  /* Comic Red */
+  --leva-colors-highlight3: #000;
+  /* Comic Blue */
+  --leva-fonts-mono: 'Comic Neue', cursive;
+  --leva-fonts-sans: 'Comic Neue', cursive;
+}
+
+/* Force Leva Button Text Color */
+div[class*="leva"] button {
+  color: #000 !important;
+  font-weight: 900 !important;
+}
+
+/* Custom Comic Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111;
+  border-left: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f7d100;
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e63946;
+}
+
+/* === RESPONSIVE LAYOUT === */
+@media (max-width: 1200px) {
+  .landing-grid-3col {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .center-hero-col {
+    order: -1; /* Move hero to the top */
+    margin-bottom: 2rem;
+  }
+
+  .speech-badge {
+    display: none; /* Hide floating badges on smaller screens to prevent clutter/overlap */
+  }
+
+  .comic-title {
+    font-size: 4rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page {
+    padding: 2rem 1rem 1rem 1rem;
+  }
+
+  .comic-title {
+    font-size: 3rem;
+  }
+  
+  .comic-subtitle {
+    font-size: 1.2rem;
+  }
+
+  .comic-button {
+    font-size: 2rem;
+    padding: 1rem 2rem;
+  }
+
+  .comic-title-container {
+    padding: 1.5rem 1rem;
+  }
+  
+  .webcam-preview {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    top: auto;
+    width: 140px;
+    z-index: 100;
+  }
+}
+
+@media (max-width: 480px) {
+  .comic-title {
+    font-size: 2.2rem;
+  }
+  .comic-button {
+    font-size: 1.5rem;
+    padding: 0.8rem 1.5rem;
+  }
 }
