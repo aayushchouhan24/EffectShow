@@ -110,6 +110,7 @@ controls.enableDamping = true
 let handLandmarker
 let faceLandmarker
 let lastVideoTime = -1
+let lastDrawCount = 0;
 
 const initializeTrackers = async () => {
   const vision = await FilesetResolver.forVisionTasks(
@@ -121,7 +122,10 @@ const initializeTrackers = async () => {
       delegate: "GPU"
     },
     runningMode: "VIDEO",
-    numHands: 6
+    numHands: 6,
+    minHandDetectionConfidence: 0.7,
+    minHandPresenceConfidence: 0.7,
+    minTrackingConfidence: 0.7
   })
   
   faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -424,10 +428,6 @@ function randomizeEffects() {
       currentEffects[i] = r;
   }
   
-  // Randomize the background/global effect as well to ensure maximum visual impact on beats
-  let rBg = Math.floor(Math.random() * effectNamesList.length);
-  bgGuiState.bgEffect = rBg;
-
   updateShaderMaterial();
   if (onEffectsChangedCallback) onEffectsChangedCallback([...currentEffects]);
   return currentEffects;
@@ -664,9 +664,26 @@ const animate = () => {
               if (!p3) p3 = p2 || p0;
               
               const addVertex = (p) => {
-                positions[vertCount * 3] = p.x
-                positions[vertCount * 3 + 1] = p.y
-                positions[vertCount * 3 + 2] = p.z
+                const idx = vertCount * 3;
+                if (vertCount >= lastDrawCount) {
+                  positions[idx] = p.x;
+                  positions[idx + 1] = p.y;
+                  positions[idx + 2] = p.z;
+                } else {
+                  const dx = p.x - positions[idx];
+                  const dy = p.y - positions[idx + 1];
+                  const dz = p.z - positions[idx + 2];
+                  if (dx*dx + dy*dy + dz*dz > 5.0) {
+                     positions[idx] = p.x;
+                     positions[idx + 1] = p.y;
+                     positions[idx + 2] = p.z;
+                  } else {
+                     const lerpFactor = 0.4;
+                     positions[idx] += dx * lerpFactor;
+                     positions[idx + 1] += dy * lerpFactor;
+                     positions[idx + 2] += dz * lerpFactor;
+                  }
+                }
                 effectIds[vertCount] = currentEffects[pairIdx * 4 + qIndex]
                 vertCount++
               }
@@ -685,8 +702,10 @@ const animate = () => {
         pointsGeo.setDrawRange(0, vertCount)
         pointsGeo.attributes.position.needsUpdate = true
         pointsGeo.attributes.aEffectId.needsUpdate = true
+        lastDrawCount = vertCount;
       } else {
         pointsGeo.setDrawRange(0, 0)
+        lastDrawCount = 0;
       }
       
       // Face Mask Update
