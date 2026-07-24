@@ -60,6 +60,13 @@ const audioParams = {
       }
     }
     input.click()
+  },
+  toggleMute: () => {
+    if (audioElement) {
+      audioElement.muted = !audioElement.muted
+      return audioElement.muted
+    }
+    return false
   }
 }
 
@@ -125,7 +132,7 @@ const initializeTrackers = async () => {
     numHands: 6,
     minHandDetectionConfidence: 0.7,
     minHandPresenceConfidence: 0.7,
-    minTrackingConfidence: 0.7
+    minTrackingConfidence: 0.7,
   })
   
   faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -139,12 +146,13 @@ const initializeTrackers = async () => {
 }
 initializeTrackers()
 
-// Create non-indexed BufferGeometry for up to 3 pairs of hands (72 vertices total)
+// Create non-indexed BufferGeometry for up to 3 pairs of hands (180 vertices total)
 const MAX_PAIRS = 3
-const MAX_VERTICES = 24 * MAX_PAIRS
+const MAX_VERTICES = 60 * MAX_PAIRS
 const pointsGeo = new THREE.BufferGeometry()
 const positions = new Float32Array(MAX_VERTICES * 3)
 const effectIds = new Float32Array(MAX_VERTICES)
+const smoothedRawPoints = new Array(MAX_PAIRS * 10).fill(null)
 pointsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
 pointsGeo.setAttribute('aEffectId', new THREE.BufferAttribute(effectIds, 1))
 pointsGeo.setDrawRange(0, 0)
@@ -253,7 +261,7 @@ const globalShaderPass = new ShaderPass({
 })
 composer.addPass(globalShaderPass)
 
-let currentEffects = new Array(4 * MAX_PAIRS).fill(0)
+let currentEffects = new Array(10 * MAX_PAIRS).fill(0)
 let lastRandomizeTime = 0
 let lastPinchTime = 0
 
@@ -264,7 +272,7 @@ const bgGuiState = {
 }
 const appSettings = { 
   enableFingers: true, 
-  maxPeople: 3,
+  maxPeople: 2,
   fingerThumb: true,
   fingerIndex: true,
   fingerMiddle: true,
@@ -564,11 +572,13 @@ const animate = () => {
                 const index = hand[8]
                 const middle = hand[12]
                 
-                const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y, thumb.z - index.z)
-                const distMid = Math.hypot(thumb.x - middle.x, thumb.y - middle.y, thumb.z - middle.z)
+                // Use 2D distances relative to palm size for robust pinch detection on all devices
+                const palmSize = Math.hypot(hand[0].x - hand[9].x, hand[0].y - hand[9].y);
+                const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+                const distMid = Math.hypot(thumb.x - middle.x, thumb.y - middle.y);
                 
-                // Real pinch: Thumb and index close, middle finger not tucked tightly into a fist
-                if (dist < 0.05 && distMid > 0.06) pinchDetected = true;
+                // Real pinch: Thumb and index close, middle finger open
+                if (dist < palmSize * 0.3 && distMid > palmSize * 0.4) pinchDetected = true;
             }
         }
         
@@ -585,8 +595,8 @@ const animate = () => {
         let vertCount = 0
         
         for (let pairIdx = 0; pairIdx < numPairs; pairIdx++) {
-          const h1Idx = pairIdx * 2
-          const h2Idx = (pairIdx * 2 + 1) < numHands ? (pairIdx * 2 + 1) : h1Idx
+          const h1Idx = pairIdx * 2 < numHands ? pairIdx * 2 : -1
+          const h2Idx = (pairIdx * 2 + 1) < numHands ? (pairIdx * 2 + 1) : -1
           
           const rawPoints = new Array(10).fill(null)
           
@@ -596,25 +606,9 @@ const animate = () => {
             fingersData.forEach((finger, i) => {
               const tipLm = handData[finger.tip]
               const pipLm = handData[finger.pip]
-              
-              let isOpen = false;
-              if (i === 0) {
-                // Thumb
-                const pinkyMcp = handData[17]
-                if (pinkyMcp) {
-                  const distTip = Math.hypot(tipLm.x - pinkyMcp.x, tipLm.y - pinkyMcp.y, tipLm.z - pinkyMcp.z)
-                  const distPip = Math.hypot(pipLm.x - pinkyMcp.x, pipLm.y - pinkyMcp.y, pipLm.z - pinkyMcp.z)
-                  isOpen = distTip > distPip
-                } else {
-                  const distTip = Math.hypot(tipLm.x - wrist.x, tipLm.y - wrist.y, tipLm.z - wrist.z)
-                  const distPip = Math.hypot(pipLm.x - wrist.x, pipLm.y - wrist.y, pipLm.z - wrist.z)
-                  isOpen = distTip > distPip
-                }
-              } else {
-                const distTip = Math.hypot(tipLm.x - wrist.x, tipLm.y - wrist.y, tipLm.z - wrist.z)
-                const distPip = Math.hypot(pipLm.x - wrist.x, pipLm.y - wrist.y, pipLm.z - wrist.z)
-                isOpen = distTip > distPip
-              }
+              const distTip = Math.hypot(tipLm.x - wrist.x, tipLm.y - wrist.y)
+              const distPip = Math.hypot(pipLm.x - wrist.x, pipLm.y - wrist.y)
+              let isOpen = distTip > distPip
               
               if (isOpen) {
                 const px = windowWidth - (offsetX + tipLm.x * displayedWidth)
@@ -631,12 +625,49 @@ const animate = () => {
                 pos.add(vector.clone().multiplyScalar(tipLm.z * 15))
                 
                 rawPoints[offsetIndex + i] = pos
+              } else {
+                rawPoints[offsetIndex + i] = "CLOSED"
               }
             })
           }
           
-          extractHand(results.landmarks[h1Idx], 0)
-          extractHand(results.landmarks[h2Idx], 5)
+          if (h1Idx !== -1) extractHand(results.landmarks[h1Idx], 0)
+          if (h2Idx !== -1) extractHand(results.landmarks[h2Idx], 5)
+
+          // Apply persistent exponential smoothing to the raw landmarks
+          const now = Date.now()
+          for (let i = 0; i < 10; i++) {
+            const current = rawPoints[i]
+            const sIdx = pairIdx * 10 + i
+            const previous = smoothedRawPoints[sIdx]
+            
+            if (current === "CLOSED") {
+              smoothedRawPoints[sIdx] = null
+              rawPoints[i] = null
+            } else if (current) {
+              if (previous) {
+                const dx = current.x - previous.x
+                const dy = current.y - previous.y
+                const dz = current.z - previous.z
+                if (dx*dx + dy*dy + dz*dz > 10.0) {
+                  smoothedRawPoints[sIdx] = current.clone() // Snap on huge jumps
+                } else {
+                  smoothedRawPoints[sIdx].lerp(current, 0.15) // Smooth tracking
+                }
+              } else {
+                smoothedRawPoints[sIdx] = current.clone()
+              }
+              smoothedRawPoints[sIdx].lastSeen = now
+              rawPoints[i] = smoothedRawPoints[sIdx]
+            } else {
+              if (previous && (now - previous.lastSeen < 500)) {
+                // Keep memory alive for up to 500ms to prevent flickering drops!
+                rawPoints[i] = previous
+              } else {
+                smoothedRawPoints[sIdx] = null
+              }
+            }
+          }
 
           const activeFingers = [];
           if (appSettings.fingerThumb && (rawPoints[0] || rawPoints[5])) activeFingers.push(0);
@@ -657,36 +688,16 @@ const animate = () => {
             
             let validCount = (p0?1:0) + (p1?1:0) + (p2?1:0) + (p3?1:0)
             
-            if (validCount >= 3) {
-              if (!p0) p0 = p1 || p3;
-              if (!p1) p1 = p0 || p2;
-              if (!p2) p2 = p1 || p3;
-              if (!p3) p3 = p2 || p0;
-              
+            if (validCount === 4) {
               const addVertex = (p) => {
                 const idx = vertCount * 3;
-                if (vertCount >= lastDrawCount) {
-                  positions[idx] = p.x;
-                  positions[idx + 1] = p.y;
-                  positions[idx + 2] = p.z;
-                } else {
-                  const dx = p.x - positions[idx];
-                  const dy = p.y - positions[idx + 1];
-                  const dz = p.z - positions[idx + 2];
-                  if (dx*dx + dy*dy + dz*dz > 5.0) {
-                     positions[idx] = p.x;
-                     positions[idx + 1] = p.y;
-                     positions[idx + 2] = p.z;
-                  } else {
-                     const lerpFactor = 0.4;
-                     positions[idx] += dx * lerpFactor;
-                     positions[idx + 1] += dy * lerpFactor;
-                     positions[idx + 2] += dz * lerpFactor;
-                  }
-                }
+                positions[idx] = p.x;
+                positions[idx + 1] = p.y;
+                positions[idx + 2] = p.z;
                 effectIds[vertCount] = currentEffects[pairIdx * 4 + qIndex]
                 vertCount++
               }
+
               // Triangle 1
               addVertex(p0)
               addVertex(p1)
@@ -912,6 +923,7 @@ document.addEventListener('touchstart', autoPlayHandler);
 return {
   uploadMusic: audioParams.uploadMusic,
   playDefaultMusic: audioParams.playDefaultMusic,
+  toggleMute: audioParams.toggleMute,
   setBgEffect: (val) => {
       bgGuiState.bgEffect = parseInt(val)
       updateShaderMaterial()

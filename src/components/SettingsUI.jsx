@@ -12,11 +12,12 @@ export default function SettingsUI({ engineApi }) {
   const [, set] = useControls(() => ({
     "Audio": folder({
       "Upload & Play Music": button(() => uploadMusic()),
+      "Toggle Mute Music": button(() => engineApi.toggleMute()),
       "Beat Match Sync": { value: true, onChange: (v) => updateSettings('beatMatch', v) }
     }, { collapsed: false }),
     "Settings": folder({
       "Enable Finger Effects": { value: true, onChange: (v) => updateSettings('enableFingers', v) },
-      "Max People": { value: 3, min: 1, max: 3, step: 1, onChange: (v) => updateSettings('maxPeople', v) },
+      "Max People": { value: 2, min: 1, max: 3, step: 1, onChange: (v) => updateSettings('maxPeople', v) },
       "Finger: Thumb": { value: true, onChange: (v) => updateSettings('fingerThumb', v) },
       "Finger: Index": { value: true, onChange: (v) => updateSettings('fingerIndex', v) },
       "Finger: Middle": { value: true, onChange: (v) => updateSettings('fingerMiddle', v) },
