@@ -146,9 +146,9 @@ const initializeTrackers = async () => {
 }
 initializeTrackers()
 
-// Create non-indexed BufferGeometry for up to 3 pairs of hands (180 vertices total)
+// Create non-indexed BufferGeometry for up to 3 pairs of hands, heavily subdivided for smooth twisting
 const MAX_PAIRS = 3
-const MAX_VERTICES = 60 * MAX_PAIRS
+const MAX_VERTICES = 15000
 const pointsGeo = new THREE.BufferGeometry()
 const positions = new Float32Array(MAX_VERTICES * 3)
 const effectIds = new Float32Array(MAX_VERTICES)
@@ -652,7 +652,7 @@ const animate = () => {
                 if (dx*dx + dy*dy + dz*dz > 10.0) {
                   smoothedRawPoints[sIdx] = current.clone() // Snap on huge jumps
                 } else {
-                  smoothedRawPoints[sIdx].lerp(current, 0.15) // Smooth tracking
+                  smoothedRawPoints[sIdx].lerp(current, 0.85) // Smooth tracking
                 }
               } else {
                 smoothedRawPoints[sIdx] = current.clone()
@@ -698,14 +698,46 @@ const animate = () => {
                 vertCount++
               }
 
-              // Triangle 1
-              addVertex(p0)
-              addVertex(p1)
-              addVertex(p2)
-              // Triangle 2
-              addVertex(p0)
-              addVertex(p2)
-              addVertex(p3)
+              const SUBDIVISIONS = 8;
+              const top = {x:0, y:0, z:0};
+              const bottom = {x:0, y:0, z:0};
+              const pt0 = {x:0, y:0, z:0};
+              const pt1 = {x:0, y:0, z:0};
+              const pt2 = {x:0, y:0, z:0};
+              const pt3 = {x:0, y:0, z:0};
+              
+              const setPoint = (pt, u, v) => {
+                top.x = p0.x + (p1.x - p0.x) * u;
+                top.y = p0.y + (p1.y - p0.y) * u;
+                top.z = p0.z + (p1.z - p0.z) * u;
+                
+                bottom.x = p3.x + (p2.x - p3.x) * u;
+                bottom.y = p3.y + (p2.y - p3.y) * u;
+                bottom.z = p3.z + (p2.z - p3.z) * u;
+                
+                pt.x = top.x + (bottom.x - top.x) * v;
+                pt.y = top.y + (bottom.y - top.y) * v;
+                pt.z = top.z + (bottom.z - top.z) * v;
+              };
+
+              for (let i = 0; i < SUBDIVISIONS; i++) {
+                for (let j = 0; j < SUBDIVISIONS; j++) {
+                  const u1 = i / SUBDIVISIONS;
+                  const v1 = j / SUBDIVISIONS;
+                  const u2 = (i + 1) / SUBDIVISIONS;
+                  const v2 = (j + 1) / SUBDIVISIONS;
+                  
+                  setPoint(pt0, u1, v1);
+                  setPoint(pt1, u2, v1);
+                  setPoint(pt2, u2, v2);
+                  setPoint(pt3, u1, v2);
+                  
+                  // Triangle 1
+                  addVertex(pt0); addVertex(pt1); addVertex(pt2);
+                  // Triangle 2
+                  addVertex(pt0); addVertex(pt2); addVertex(pt3);
+                }
+              }
             }
           }
         }
